@@ -18,7 +18,7 @@ st.subheader("AI-Powered Flavor Discovery for HealthKart")
 # -----------------------------
 # Load social chatter data
 # -----------------------------
-df = pd.read_csv("social_chatter.csv")
+df = pd.read_csv("data/social_chatter.csv")
 
 st.markdown("### 💬 Social Media Chatter")
 st.write(f"Loaded **{len(df)}** social comments")
