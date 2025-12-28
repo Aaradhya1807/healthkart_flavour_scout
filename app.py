@@ -5,28 +5,24 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load environment variables
+
 load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Page config
+
 st.set_page_config(page_title="Flavor Scout", layout="wide")
 st.title("🍽️ Flavor Scout Engine")
 st.subheader("AI-Powered Flavor Discovery for HealthKart")
 
-# -----------------------------
-# Load social chatter data
-# -----------------------------
+
 df = pd.read_csv("data/social_chatter.csv")
 
 st.markdown("### 💬 Social Media Chatter")
 st.write(f"Loaded **{len(df)}** social comments")
 st.dataframe(df, use_container_width=True)
 
-# -----------------------------
-# Trend Wall
-# -----------------------------
+
 st.markdown("## 📊 Trend Wall")
 
 all_text = " ".join(df["comment"].tolist()).lower()
@@ -44,9 +40,7 @@ trend_df = pd.DataFrame({
 
 st.bar_chart(trend_df.set_index("Flavor Keyword"))
 
-# -----------------------------
-# AI Analysis
-# -----------------------------
+
 st.markdown("## 🤖 AI Analysis")
 
 if st.button("🔍 Analyze with AI"):
@@ -98,7 +92,6 @@ Comments:
 
     raw_output = response.choices[0].message.content.strip()
 
-    # Debug view (optional but useful)
     st.markdown("### 🧾 Raw AI Output (Debug)")
     st.code(raw_output, language="json")
 
@@ -108,9 +101,7 @@ Comments:
         st.error("⚠️ AI output could not be parsed as JSON.")
         st.stop()
 
-    # -----------------------------
-    # Decision Engine
-    # -----------------------------
+
     st.markdown("## 🧠 Decision Engine")
 
     col1, col2 = st.columns(2)
@@ -129,9 +120,7 @@ Comments:
                 f"**{item['flavor']}** — {item['reason']}"
             )
 
-    # -----------------------------
-    # Golden Candidate
-    # -----------------------------
+  
     st.markdown("## 🏆 Golden Candidate")
 
     gc = ai_output["golden_candidate"]
