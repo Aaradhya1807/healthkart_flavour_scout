@@ -49,39 +49,51 @@ if st.button("🔍 Analyze with AI"):
     prompt = f"""
 You are a product analyst at HealthKart.
 
-Analyze the following social media comments.
-
-Tasks:
-1. Extract flavor ideas.
-2. Classify them into SELECTED or REJECTED.
-3. Choose ONE Golden Candidate.
-4. Give 1 simple business-friendly reason for each selected idea.
-5. Ensure brand fit:
-   - MuscleBlaze = Hardcore gym / performance
-   - HK Vitals = Wellness / lifestyle
-   - TrueBasics = Clean daily nutrition
+From the following social media comments, do the following:
+1. Identify potential new flavor ideas.
+2. Reject weak or noisy ideas.
+3. Select the strongest 3 flavor ideas.
+4. For each selected idea, provide:
+   - trend_score (0–100 based on frequency + excitement)
+   - confidence (High / Medium / Low)
+   - why (1 simple business sentence)
+5. Choose ONE Golden Candidate with brand suggestion and justification.
 
 IMPORTANT:
-- Respond with ONLY valid JSON
-- Do NOT add explanations
-- Do NOT use markdown
-- Do NOT wrap in ``` blocks
-
-Return JSON in this exact structure:
-
-{{
-  "selected": [
-    {{"flavor": "", "brand": "", "why": ""}}
-  ],
-  "rejected": [
-    {{"flavor": "", "reason": ""}}
-  ],
-  "golden_candidate": {{"flavor": "", "brand": "", "why": ""}}
-}}
+- Be conservative and realistic.
+- Scores above 80 should be rare and justified.
 
 Comments:
 {comments_text}
+
+Return STRICT JSON only in this format:
+
+{{
+  "selected": [
+    {{
+      "flavor": "",
+      "brand": "",
+      "trend_score": 0,
+      "confidence": "",
+      "why": ""
+    }}
+  ],
+  "rejected": [
+    {{
+      "flavor": "",
+      "reason": ""
+    }}
+  ],
+  "golden_candidate": {{
+    "flavor": "",
+    "brand": "",
+    "trend_score": 0,
+    "confidence": "",
+    "why": ""
+  }}
+}}
 """
+
 
     with st.spinner("AI is analyzing social chatter..."):
         response = client.chat.completions.create(
