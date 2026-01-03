@@ -1,4 +1,5 @@
-# 🍽️ Flavor Scout Engine
+# 🍽️ Flavor Scout Engine  
+## AI-Driven Flavor Decision System for HealthKart
 
 AI-Driven Flavor Decision System for HealthKart
 
@@ -66,6 +67,23 @@ Brand Fit Score	Alignment with HealthKart brands (MuscleBlaze, HK Vitals, etc.)
 Signal Quality Score	Noise vs genuine consumer intent
 
 A Final Score is computed using weighted reasoning.
+
+🎯 Final Acceptance Logic
+
+Each flavor receives a **Final Score (0–100)** computed using weighted contributions from:
+
+- Trend Score  
+- Sentiment Score  
+- Brand Fit Score  
+- Signal Quality Score  
+
+**Decision Rules:**
+- ✅ **ACCEPT** → Final Score **≥ 75** (High confidence, launch-worthy)
+- ❌ **REJECT** → Final Score **< 75** (Weak signal or high noise)
+
+This threshold-based approach ensures that only flavors with strong consumer demand,
+brand alignment, and clear intent move forward — mirroring real-world product council decisions.
+
 
 4️⃣ LLM-Based Decision Reasoning
 
