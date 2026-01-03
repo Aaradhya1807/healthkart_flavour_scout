@@ -1,17 +1,17 @@
-🍽️ Flavor Scout Engine
+🍽️ #Flavor Scout Engine
 
 AI-Driven Flavor Decision System for HealthKart
 
 Flavor Scout Engine is an explainable product decision system built as part of the HealthKart Product Analytics Assignment.
 The platform converts noisy social media chatter into clear, auditable flavor decisions using structured analytics + LLM-based reasoning.
 
-🚀 Live Demo & Code
+🚀 #Live Demo & Code
 
-🔗 Live App: https://healthkart-flavour-scout.onrender.com
+🔗## Live App: https://healthkart-flavour-scout.onrender.com
 
-🔗 GitHub Repo: https://github.com/Aaradhya1807/healthkart_flavour_scout
+🔗## GitHub Repo: https://github.com/Aaradhya1807/healthkart_flavour_scout
 
-🎯 Business Problem
+🎯## Business Problem
 
 Flavor innovation in nutrition products often relies on intuition or delayed sales data.
 By the time trends appear in dashboards, consumer interest may already be fading.
@@ -26,7 +26,7 @@ Clearly explain why a flavor is accepted or rejected
 
 Recommend one high-confidence flavor for business action
 
-🧠 Solution Overview
+🧠## Solution Overview
 
 Flavor Scout Engine acts as a Decision Intelligence Layer between social chatter and product teams.
 
@@ -40,7 +40,7 @@ Rejected ideas (with rejection logic)
 
 One Golden Candidate recommended for launch consideration
 
-🔍 Decision Pipeline (End-to-End)
+##🔍 Decision Pipeline (End-to-End)
 1️⃣ Social Media Data Collection
 
 Input data simulates Reddit / review / comment-based chatter
@@ -91,7 +91,7 @@ Clear launch justification
 
 This mirrors how real product councils operate.
 
-📊 Output Example
+##📊 Output Example
 ✅ Accepted Flavors
 
 Masala Chai — MuscleBlaze
@@ -110,7 +110,7 @@ Weak product-market fit
 
 Each rejection includes a clear explanation.
 
-🏆 Golden Candidate
+##🏆 Golden Candidate
 
 Masala Chai Whey — MuscleBlaze
 
@@ -128,7 +128,7 @@ Strong trend momentum, emotional recall, and brand synergy for Indian fitness co
 
 Designed for Product Managers, not just engineers.
 
-⚙️ Tech Stack
+##⚙️ Tech Stack
 
 Frontend: Streamlit
 
@@ -158,7 +158,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 
-📈 Future Enhancements
+##📈 Future Enhancements
 
 Live Reddit / Twitter ingestion
 
