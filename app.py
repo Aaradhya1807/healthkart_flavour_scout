@@ -5,94 +5,75 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# ------------------ SETUP ------------------
+# -------------------- CONFIG --------------------
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-st.set_page_config(page_title="Flavor Scout", layout="wide")
+st.set_page_config(page_title="Flavor Scout Engine", layout="wide")
+
+# -------------------- HEADER --------------------
 st.title("🍽️ Flavor Scout Engine")
-
-# ------------------ DECISION PIPELINE ------------------
-st.markdown("## 🧠 How Flavor Decisions Are Made")
-
-with st.expander("Click to understand the decision pipeline"):
-    st.markdown("""
-    **Flavor Scout follows a structured, explainable decision pipeline:**
-
-    **1️⃣ Social Media Data Collection**  
-    Raw comments from social platforms are used as input signals.
-
-    **2️⃣ Cleaning & Signal Extraction**  
-    Irrelevant chatter and noise are reduced to focus on meaningful flavor mentions.
-
-    **3️⃣ Trend Detection**  
-    Frequency and context of mentions are analyzed to assess emerging interest.
-
-    **4️⃣ LLM-based Decision Engine**  
-    Each flavor is evaluated using fixed criteria:
-    - Trend Strength  
-    - Consumer Sentiment  
-    - Brand Fit (MuscleBlaze / HK Vitals)  
-    - Noise vs Signal Quality  
-
-    **5️⃣ Decision Output**
-    - ✅ Accepted flavors with reasons  
-    - ❌ Rejected flavors with clear justification  
-    - ⭐ One Golden Candidate for product consideration
-    """)
-
 st.subheader("AI-Powered Flavor Discovery for HealthKart")
 
-# ------------------ LOAD DATA ------------------
+# -------------------- DECISION PIPELINE --------------------
+st.markdown("## 🧠 How Flavor Decisions Are Made")
+
+with st.expander("Click to understand the end-to-end decision logic"):
+    st.markdown("""
+### Flavor Scout follows a **5-step decision pipeline**:
+
+**1️⃣ Social Data Ingestion**  
+User comments from social platforms are used as raw market signals.
+
+**2️⃣ Signal Cleaning & Extraction**  
+Duplicate, vague, or irrelevant chatter is ignored. Only meaningful flavor mentions are considered.
+
+**3️⃣ Trend Strength Estimation**  
+Mentions are counted to identify early demand signals (frequency + context).
+
+**4️⃣ LLM-based Reasoning Engine**  
+An LLM evaluates each flavor on:
+- Trend strength  
+- Sentiment & excitement  
+- Brand alignment (MuscleBlaze / HK Vitals)  
+- Noise vs signal quality  
+
+**5️⃣ Decision Output**
+- ✅ Accepted flavors (with scores & confidence)  
+- ❌ Rejected flavors (with clear reasons)  
+- ⭐ One *Golden Candidate* recommended for business action
+""")
+
+# -------------------- LOAD DATA --------------------
 df = pd.read_csv("data/social_chatter.csv")
 
-st.markdown("### 💬 Social Media Chatter")
-st.write(f"Loaded **{len(df)}** social comments")
+st.markdown("## 💬 Social Media Chatter")
+st.write(f"Loaded **{len(df)}** comments")
 st.dataframe(df, use_container_width=True)
 
-# ------------------ TREND WALL ------------------
-st.markdown("## 📊 Trend Wall")
+# -------------------- TREND WALL --------------------
+st.markdown("## 📊 Trend Signals (Explainable)")
 
 all_text = " ".join(df["comment"].tolist()).lower()
+
 keywords = [
     "chocolate", "vanilla", "kesar", "pista", "chai",
     "watermelon", "blueberry", "cocoa", "nimbu", "orange"
 ]
 
-trend_data = {k: all_text.count(k) for k in keywords}
+trend_counts = {k: all_text.count(k) for k in keywords}
 
 trend_df = pd.DataFrame({
-    "Flavor Keyword": trend_data.keys(),
-    "Mentions": trend_data.values()
+    "Flavor": trend_counts.keys(),
+    "Mentions": trend_counts.values()
 }).sort_values(by="Mentions", ascending=False)
 
-st.bar_chart(trend_df.set_index("Flavor Keyword"))
+st.bar_chart(trend_df.set_index("Flavor"))
 
-# ------------------ DECISION CRITERIA ------------------
-DECISION_CRITERIA = """
-Decision Criteria:
+st.caption("Higher mentions indicate stronger early demand signals.")
 
-1. Trend Strength:
-   - High: Frequently mentioned
-   - Medium: Moderate mentions
-   - Low: Rare mentions
-
-2. Sentiment:
-   - Positive: Excitement, liking, demand
-   - Neutral: Casual mentions
-   - Negative: Dislike or rejection
-
-3. Brand Fit:
-   - MuscleBlaze: Performance, gym-centric flavors
-   - HK Vitals: Wellness, refreshment, lifestyle flavors
-
-4. Noise Level:
-   - Low: Clear, relevant context
-   - High: Spam or irrelevant chatter
-"""
-
-# ------------------ AI ANALYSIS ------------------
-st.markdown("## 🤖 AI Analysis")
+# -------------------- AI ANALYSIS --------------------
+st.markdown("## 🤖 AI Decision Engine")
 
 if st.button("🔍 Analyze with AI"):
     comments_text = "\n".join(df["comment"].tolist())
@@ -100,27 +81,32 @@ if st.button("🔍 Analyze with AI"):
     prompt = f"""
 You are a product analyst at HealthKart.
 
-Your task is to make clear ACCEPT or REJECT decisions for potential
-flavor ideas using ONLY the criteria below:
+TASK:
+Evaluate flavor ideas from social media comments using a **structured decision framework**.
 
-{DECISION_CRITERIA}
+DECISION CRITERIA:
+- Trend strength (frequency + excitement)
+- Sentiment positivity
+- Brand alignment (MuscleBlaze / HK Vitals)
+- Signal vs noise quality
 
-Instructions:
-1. Extract potential flavor ideas from the comments.
-2. For EACH flavor:
-   - Decide ACCEPT or REJECT
-   - Clearly explain which criteria passed or failed
-3. ACCEPT only the TOP 3 strongest flavors.
-4. From accepted flavors, choose ONE Golden Candidate.
+INSTRUCTIONS:
+- Be conservative and realistic
+- Scores above 80 should be rare
+- Reject weak or irrelevant ideas clearly
 
-Return STRICT JSON only in this format:
+OUTPUT:
+Return ONLY valid JSON. Do NOT include markdown or explanations.
 
+FORMAT:
 {{
-  "accepted": [
+  "selected": [
     {{
       "flavor": "",
       "brand": "",
-      "reason": ""
+      "trend_score": 0,
+      "confidence": "High / Medium / Low",
+      "why": ""
     }}
   ],
   "rejected": [
@@ -132,15 +118,17 @@ Return STRICT JSON only in this format:
   "golden_candidate": {{
     "flavor": "",
     "brand": "",
-    "reason": ""
+    "trend_score": 0,
+    "confidence": "",
+    "why": ""
   }}
 }}
 
-Comments:
+COMMENTS:
 {comments_text}
 """
 
-    with st.spinner("AI is analyzing social chatter..."):
+    with st.spinner("AI is evaluating flavor decisions..."):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
@@ -149,43 +137,63 @@ Comments:
 
     raw_output = response.choices[0].message.content.strip()
 
+    # -------------------- JSON SANITIZATION --------------------
+    if raw_output.startswith("```"):
+        raw_output = raw_output.replace("```json", "")
+        raw_output = raw_output.replace("```", "")
+        raw_output = raw_output.strip()
+
+    st.markdown("### 🧾 Raw AI Output (Debug)")
+    st.code(raw_output, language="json")
+
     try:
         ai_output = json.loads(raw_output)
     except json.JSONDecodeError:
         st.error("⚠️ AI output could not be parsed as JSON.")
-        st.code(raw_output)
         st.stop()
 
-    # ------------------ RESULTS UI ------------------
+    # -------------------- DECISION OUTPUT --------------------
     st.markdown("## 🧠 Decision Results")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### ✅ Accepted Flavor Ideas")
-        for item in ai_output["accepted"]:
-            st.success(f"**{item['flavor']}** ({item['brand']})\n\n{item['reason']}")
+        st.markdown("### ✅ Accepted Ideas")
+        for item in ai_output["selected"]:
+            st.success(
+                f"""
+**{item['flavor']}** — *{item['brand']}*  
+**Trend Score:** {item['trend_score']}  
+**Confidence:** {item['confidence']}  
+
+{item['why']}
+"""
+            )
 
     with col2:
-        st.markdown("### ❌ Rejected Flavor Ideas")
+        st.markdown("### ❌ Rejected Ideas")
         for item in ai_output["rejected"]:
-            st.error(f"**{item['flavor']}** — {item['reason']}")
+            st.error(
+                f"**{item['flavor']}** — {item['reason']}"
+            )
 
-    st.markdown("## ⭐ Golden Candidate")
-
+    # -------------------- GOLDEN CANDIDATE --------------------
     gc = ai_output["golden_candidate"]
+
+    st.markdown("## 🏆 Golden Candidate Recommendation")
 
     st.markdown(
         f"""
-        <div style="
-            padding: 30px;
-            border-radius: 15px;
-            background-color: #0f172a;
-            color: white;
-        ">
-            <h2>🚀 {gc['flavor']} — {gc['brand']}</h2>
-            <p style="font-size:18px;">{gc['reason']}</p>
-        </div>
-        """,
+<div style="
+    padding: 30px;
+    border-radius: 15px;
+    background-color: #0f172a;
+    color: white;
+">
+    <h2>🚀 {gc['flavor']} — {gc['brand']}</h2>
+    <p><strong>Trend Score:</strong> {gc['trend_score']} | <strong>Confidence:</strong> {gc['confidence']}</p>
+    <p style="font-size:18px;">{gc['why']}</p>
+</div>
+""",
         unsafe_allow_html=True
     )
