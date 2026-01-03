@@ -1,4 +1,4 @@
-🍽️ #Flavor Scout Engine
+🍽️ # Flavor Scout Engine
 
 AI-Driven Flavor Decision System for HealthKart
 
