@@ -13,6 +13,34 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 st.set_page_config(page_title="Flavor Scout", layout="wide")
 st.title("🍽️ Flavor Scout Engine")
+st.markdown("## 🧠 How Flavor Decisions Are Made")
+
+with st.expander("Click to understand the decision pipeline"):
+    st.markdown("""
+    **Flavor Scout follows a structured decision pipeline:**
+
+    **1️⃣ Social Media Data Collection**  
+    Raw comments from social platforms are loaded as input data.
+
+    **2️⃣ Data Cleaning & Signal Extraction**  
+    Noise, irrelevant chatter, and duplicates are reduced to extract meaningful flavor mentions.
+
+    **3️⃣ Trend & Sentiment Evaluation**  
+    Frequency and context of flavor mentions are analyzed to detect emerging trends.
+
+    **4️⃣ LLM-based Reasoning Engine**  
+    A Large Language Model evaluates each flavor based on:
+    - Trend strength  
+    - Brand alignment  
+    - Market readiness  
+    - Noise vs signal quality  
+
+    **5️⃣ Decision Output**
+    - ✅ Strong ideas are shortlisted  
+    - ❌ Weak or noisy ideas are rejected with reasons  
+    - ⭐ One *Golden Candidate* is recommended for business consideration
+    """)
+
 st.subheader("AI-Powered Flavor Discovery for HealthKart")
 
 
