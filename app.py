@@ -5,54 +5,53 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# -------------------- CONFIG --------------------
+# ------------------ SETUP ------------------
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 st.set_page_config(page_title="Flavor Scout Engine", layout="wide")
 
-# -------------------- HEADER --------------------
 st.title("🍽️ Flavor Scout Engine")
 st.subheader("AI-Powered Flavor Discovery for HealthKart")
 
-# -------------------- DECISION PIPELINE --------------------
+# ------------------ EXPLAINABILITY HEADER ------------------
 st.markdown("## 🧠 How Flavor Decisions Are Made")
 
-with st.expander("Click to understand the end-to-end decision logic"):
+with st.expander("Click to understand the decision pipeline"):
     st.markdown("""
-### Flavor Scout follows a **5-step decision pipeline**:
+**Flavor Scout follows a structured, explainable decision pipeline:**
 
-**1️⃣ Social Data Ingestion**  
-User comments from social platforms are used as raw market signals.
+**1️⃣ Social Media Data Collection**  
+Raw social media comments are ingested as unstructured input data.
 
-**2️⃣ Signal Cleaning & Extraction**  
-Duplicate, vague, or irrelevant chatter is ignored. Only meaningful flavor mentions are considered.
+**2️⃣ Signal Extraction & Noise Reduction**  
+Duplicate, irrelevant, or low-signal chatter is reduced to focus on genuine flavor demand.
 
-**3️⃣ Trend Strength Estimation**  
-Mentions are counted to identify early demand signals (frequency + context).
+**3️⃣ Trend & Sentiment Analysis**  
+Flavor mentions are evaluated based on frequency, momentum, and emotional tone.
 
-**4️⃣ LLM-based Reasoning Engine**  
-An LLM evaluates each flavor on:
-- Trend strength  
-- Sentiment & excitement  
-- Brand alignment (MuscleBlaze / HK Vitals)  
-- Noise vs signal quality  
+**4️⃣ LLM-based Scoring Engine**  
+Each flavor is scored on:
+- Trend Strength  
+- Sentiment Strength  
+- Brand Fit  
+- Signal Quality  
 
-**5️⃣ Decision Output**
-- ✅ Accepted flavors (with scores & confidence)  
-- ❌ Rejected flavors (with clear reasons)  
-- ⭐ One *Golden Candidate* recommended for business action
+**5️⃣ Decision Rules**
+- Final Score ≥ 70 → Accepted  
+- Final Score < 70 → Rejected  
+- One Golden Candidate is recommended for business consideration
 """)
 
-# -------------------- LOAD DATA --------------------
+# ------------------ LOAD DATA ------------------
 df = pd.read_csv("data/social_chatter.csv")
 
-st.markdown("## 💬 Social Media Chatter")
-st.write(f"Loaded **{len(df)}** comments")
+st.markdown("### 💬 Social Media Chatter")
+st.write(f"Loaded **{len(df)}** social comments")
 st.dataframe(df, use_container_width=True)
 
-# -------------------- TREND WALL --------------------
-st.markdown("## 📊 Trend Signals (Explainable)")
+# ------------------ TREND WALL ------------------
+st.markdown("## 📊 Trend Wall")
 
 all_text = " ".join(df["comment"].tolist()).lower()
 
@@ -61,18 +60,16 @@ keywords = [
     "watermelon", "blueberry", "cocoa", "nimbu", "orange"
 ]
 
-trend_counts = {k: all_text.count(k) for k in keywords}
+trend_data = {k: all_text.count(k) for k in keywords}
 
 trend_df = pd.DataFrame({
-    "Flavor": trend_counts.keys(),
-    "Mentions": trend_counts.values()
+    "Flavor Keyword": trend_data.keys(),
+    "Mentions": trend_data.values()
 }).sort_values(by="Mentions", ascending=False)
 
-st.bar_chart(trend_df.set_index("Flavor"))
+st.bar_chart(trend_df.set_index("Flavor Keyword"))
 
-st.caption("Higher mentions indicate stronger early demand signals.")
-
-# -------------------- AI ANALYSIS --------------------
+# ------------------ AI ANALYSIS ------------------
 st.markdown("## 🤖 AI Decision Engine")
 
 if st.button("🔍 Analyze with AI"):
@@ -81,45 +78,41 @@ if st.button("🔍 Analyze with AI"):
     prompt = f"""
 You are a product analyst at HealthKart.
 
-TASK:
-Evaluate flavor ideas from social media comments using a **structured decision framework**.
+Evaluate flavor ideas using a structured, explainable scoring framework.
 
-DECISION CRITERIA:
-- Trend strength (frequency + excitement)
-- Sentiment positivity
-- Brand alignment (MuscleBlaze / HK Vitals)
-- Signal vs noise quality
+SCORING DIMENSIONS (0–100):
+- trend_score: frequency + momentum
+- sentiment_score: positivity and excitement
+- brand_fit_score: alignment with MuscleBlaze / HK Vitals
+- signal_quality_score: noise vs genuine demand
 
-INSTRUCTIONS:
-- Be conservative and realistic
-- Scores above 80 should be rare
-- Reject weak or irrelevant ideas clearly
+FINAL_SCORE = average of all four scores
 
-OUTPUT:
-Return ONLY valid JSON. Do NOT include markdown or explanations.
+DECISION RULES:
+- FINAL_SCORE >= 70 → ACCEPT
+- FINAL_SCORE < 70 → REJECT
+- Scores above 85 should be rare and strongly justified
 
-FORMAT:
+Return STRICT JSON only in the following format:
+
 {{
-  "selected": [
+  "decision_trace": [
     {{
       "flavor": "",
       "brand": "",
       "trend_score": 0,
-      "confidence": "High / Medium / Low",
-      "why": ""
-    }}
-  ],
-  "rejected": [
-    {{
-      "flavor": "",
+      "sentiment_score": 0,
+      "brand_fit_score": 0,
+      "signal_quality_score": 0,
+      "final_score": 0,
+      "decision": "ACCEPT / REJECT",
       "reason": ""
     }}
   ],
   "golden_candidate": {{
     "flavor": "",
     "brand": "",
-    "trend_score": 0,
-    "confidence": "",
+    "final_score": 0,
     "why": ""
   }}
 }}
@@ -128,7 +121,7 @@ COMMENTS:
 {comments_text}
 """
 
-    with st.spinner("AI is evaluating flavor decisions..."):
+    with st.spinner("AI is analyzing social chatter and making decisions..."):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
@@ -137,53 +130,64 @@ COMMENTS:
 
     raw_output = response.choices[0].message.content.strip()
 
-    # -------------------- JSON SANITIZATION --------------------
-    if raw_output.startswith("```"):
-        raw_output = raw_output.replace("```json", "")
-        raw_output = raw_output.replace("```", "")
-        raw_output = raw_output.strip()
-
+    # ------------------ DEBUG OUTPUT ------------------
     st.markdown("### 🧾 Raw AI Output (Debug)")
     st.code(raw_output, language="json")
 
+    # ------------------ PARSE JSON ------------------
     try:
         ai_output = json.loads(raw_output)
-    except json.JSONDecodeError:
-        st.error("⚠️ AI output could not be parsed as JSON.")
-        st.stop()
 
-    # -------------------- DECISION OUTPUT --------------------
-    st.markdown("## 🧠 Decision Results")
+        # ------------------ DECISION TRACE TABLE ------------------
+        st.markdown("## 📋 Decision Trace (Explainable Scoring)")
 
-    col1, col2 = st.columns(2)
+        trace_df = pd.DataFrame(ai_output["decision_trace"])
 
-    with col1:
-        st.markdown("### ✅ Accepted Ideas")
-        for item in ai_output["selected"]:
-            st.success(
-                f"""
-**{item['flavor']}** — *{item['brand']}*  
-**Trend Score:** {item['trend_score']}  
-**Confidence:** {item['confidence']}  
+        st.dataframe(
+            trace_df[
+                [
+                    "flavor",
+                    "trend_score",
+                    "sentiment_score",
+                    "brand_fit_score",
+                    "signal_quality_score",
+                    "final_score",
+                    "decision"
+                ]
+            ],
+            use_container_width=True
+        )
 
-{item['why']}
+        # ------------------ ACCEPT / REJECT BREAKDOWN ------------------
+        st.markdown("## 🧠 Decision Breakdown")
+
+        for item in ai_output["decision_trace"]:
+            if item["decision"] == "ACCEPT":
+                st.success(
+                    f"""
+**{item['flavor']}** — {item['brand']}  
+**Final Score:** {item['final_score']}  
+
+{item['reason']}
 """
-            )
+                )
+            else:
+                st.error(
+                    f"""
+**{item['flavor']}**  
+**Final Score:** {item['final_score']}  
 
-    with col2:
-        st.markdown("### ❌ Rejected Ideas")
-        for item in ai_output["rejected"]:
-            st.error(
-                f"**{item['flavor']}** — {item['reason']}"
-            )
+Rejected because: {item['reason']}
+"""
+                )
 
-    # -------------------- GOLDEN CANDIDATE --------------------
-    gc = ai_output["golden_candidate"]
+        # ------------------ GOLDEN CANDIDATE ------------------
+        gc = ai_output["golden_candidate"]
 
-    st.markdown("## 🏆 Golden Candidate Recommendation")
+        st.markdown("## 🏆 Golden Candidate Recommendation")
 
-    st.markdown(
-        f"""
+        st.markdown(
+            f"""
 <div style="
     padding: 30px;
     border-radius: 15px;
@@ -191,9 +195,14 @@ COMMENTS:
     color: white;
 ">
     <h2>🚀 {gc['flavor']} — {gc['brand']}</h2>
-    <p><strong>Trend Score:</strong> {gc['trend_score']} | <strong>Confidence:</strong> {gc['confidence']}</p>
+    <p><strong>Final Score:</strong> {gc['final_score']}</p>
     <p style="font-size:18px;">{gc['why']}</p>
 </div>
 """,
-        unsafe_allow_html=True
-    )
+            unsafe_allow_html=True
+        )
+
+    except json.JSONDecodeError:
+        st.error("⚠️ AI output could not be parsed as JSON.")
+        st.code(raw_output)
+        st.stop()
