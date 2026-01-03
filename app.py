@@ -38,8 +38,8 @@ Each flavor is scored on:
 - Signal Quality  
 
 5️⃣ **Decision Rules**
-- Final Score ≥ 70 → ACCEPT  
-- Final Score < 70 → REJECT  
+- Final Score ≥ 75 → ACCEPT  
+- Final Score < 75 → REJECT  
 - One Golden Candidate is recommended
 """)
 
@@ -90,8 +90,8 @@ SCORING (0–100):
 FINAL_SCORE = average of all four scores
 
 RULES:
-- FINAL_SCORE >= 70 → ACCEPT
-- FINAL_SCORE < 70 → REJECT
+- FINAL_SCORE >= 75 → ACCEPT
+- FINAL_SCORE < 75 → REJECT
 - Scores above 85 should be rare
 
 Return STRICT JSON only.
