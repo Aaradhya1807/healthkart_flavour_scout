@@ -4,6 +4,8 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+from reddit_ingest import fetch_reddit_comments
+
 
 # ------------------ SETUP ------------------
 load_dotenv()
@@ -13,6 +15,16 @@ st.set_page_config(page_title="Flavor Scout Engine", layout="wide")
 
 st.title("🍽️ Flavor Scout Engine")
 st.subheader("AI-Powered Flavor Discovery for HealthKart")
+
+
+# ------------------ DATA SOURCE ------------------
+st.markdown("## 📥 Data Source")
+
+data_source = st.selectbox(
+    "Select input source",
+    ["Sample Dataset", "Live Reddit Comments (Beta)"]
+)
+
 
 # ------------------ EXPLAINABILITY ------------------
 st.markdown("## 🧠 How Flavor Decisions Are Made")
@@ -43,12 +55,33 @@ Each flavor is scored on:
 - One Golden Candidate is recommended
 """)
 
-# ------------------ LOAD DATA ------------------
-df = pd.read_csv("data/social_chatter.csv")
 
+# ------------------ LOAD DATA (FIXED SECTION) ------------------
+if data_source == "Live Reddit Comments (Beta)":
+    keyword = st.text_input(
+        "Enter keyword / flavor to analyze",
+        value="whey protein"
+    )
+
+    with st.spinner("Fetching Reddit comments..."):
+        df = fetch_reddit_comments(keyword=keyword, limit=120)
+
+    if df.empty:
+        st.warning(
+            "⚠️ Live Reddit data is currently limited due to API restrictions. "
+            "Showing representative sample data instead."
+        )
+        df = pd.read_csv("data/social_chatter.csv")
+
+else:
+    df = pd.read_csv("data/social_chatter.csv")
+
+
+# ------------------ DISPLAY DATA ------------------
 st.markdown("### 💬 Social Media Chatter")
 st.write(f"Loaded **{len(df)}** comments")
 st.dataframe(df, use_container_width=True)
+
 
 # ------------------ TREND WALL ------------------
 st.markdown("## 📊 Trend Wall")
@@ -68,6 +101,7 @@ trend_df = pd.DataFrame({
 }).sort_values(by="Mentions", ascending=False)
 
 st.bar_chart(trend_df.set_index("Flavor"))
+
 
 # ------------------ AI ANALYSIS ------------------
 st.markdown("## 🤖 AI Decision Engine")
@@ -130,24 +164,18 @@ COMMENTS:
             temperature=0.3
         )
 
-    # ------------------ RAW OUTPUT ------------------
     raw_output = response.choices[0].message.content.strip()
 
-    # ------------------ CLEAN OUTPUT (CRITICAL FIX) ------------------
+    # ---------- CLEAN JSON ----------
     if raw_output.startswith("```"):
-        raw_output = raw_output.replace("```json", "")
-        raw_output = raw_output.replace("```", "")
-        raw_output = raw_output.strip()
+        raw_output = raw_output.replace("```json", "").replace("```", "").strip()
 
     if "{" in raw_output and "}" in raw_output:
-        raw_output = raw_output[
-            raw_output.find("{"): raw_output.rfind("}") + 1
-        ]
+        raw_output = raw_output[raw_output.find("{"): raw_output.rfind("}") + 1]
 
     st.markdown("### 🧾 Raw AI Output (Debug)")
     st.code(raw_output, language="json")
 
-    # ------------------ PARSE JSON ------------------
     try:
         ai_output = json.loads(raw_output)
     except json.JSONDecodeError:
@@ -174,7 +202,7 @@ COMMENTS:
         use_container_width=True
     )
 
-    # ------------------ ACCEPT / REJECT ------------------
+    # ------------------ BREAKDOWN ------------------
     st.markdown("## 🧠 Decision Breakdown")
 
     for item in ai_output["decision_trace"]:
