@@ -43,7 +43,7 @@ with st.expander("Click to understand the decision pipeline"):
 Live and cached social media comments are ingested.
 
 2️⃣ **Signal Extraction**  
-Noise is reduced to isolate genuine flavor demand.
+Noise is reduced to isolate meaningful flavor-related discussion.
 
 3️⃣ **Semantic Trend & Sentiment Analysis**  
 Implicit flavor intent is inferred from context.
@@ -207,16 +207,14 @@ COMMENTS:
     )
 
 
-    # ------------------ 🔥 AI-ALIGNED TREND WALL (FIXED) ------------------
+    # ------------------ TREND WALL (AI-ALIGNED) ------------------
     st.markdown("## 📊 Trend Wall (AI-Evaluated)")
 
-    trend_wall_df = trace_df[["flavor", "trend_score"]]
-    trend_wall_df = trend_wall_df.set_index("flavor")
-
+    trend_wall_df = trace_df[["flavor", "trend_score"]].set_index("flavor")
     st.bar_chart(trend_wall_df)
 
 
-    # ------------------ BREAKDOWN ------------------
+    # ------------------ DECISION BREAKDOWN ------------------
     st.markdown("## 🧠 Decision Breakdown")
 
     for item in ai_output["decision_trace"]:

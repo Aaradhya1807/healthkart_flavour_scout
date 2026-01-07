@@ -1,17 +1,17 @@
-# 🍽️ Flavor Scout Engine
+🍽️ Flavor Scout Engine
 AI-Driven Flavor Decision System for HealthKart
 
 Flavor Scout Engine is an explainable, AI-powered product decision system designed to help nutrition brands identify high-potential flavor ideas using live consumer discussions from public platforms.
 
 The system converts noisy social chatter into structured, auditable flavor decisions using analytics + LLM-based reasoning.
 
-# 🚀 Live Demo & Code
+🚀 Live Demo & Code
 
-## 🔗 Live App: https://healthkart-flavour-scout.onrender.com
+🔗 Live App: https://healthkart-flavour-scout.onrender.com
 
-## 🔗 GitHub Repo: https://github.com/Aaradhya1807/healthkart_flavour_scout
+🔗 GitHub Repo: https://github.com/Aaradhya1807/healthkart_flavour_scout
 
-# 🎯 Business Problem
+🎯 Business Problem
 
 Flavor innovation in nutrition products often relies on intuition or delayed sales data.
 By the time trends appear in dashboards, consumer interest may already be fading.
@@ -26,7 +26,7 @@ Insights are difficult to justify to stakeholders
 
 Flavor Scout addresses this gap by providing a resilient, explainable decision pipeline.
 
-# 🧠 Solution Overview
+🧠 Solution Overview
 
 Flavor Scout ingests live social discussions, extracts flavor signals, and evaluates them using a transparent scoring framework.
 
@@ -42,7 +42,7 @@ Explainable, score-based decision making
 
 Clear ACCEPT / REJECT recommendations
 
-# 📥 Data Sources
+📥 Data Sources
 ✅ Primary: YouTube Comments (Live)
 
 Uses official YouTube Data API v3
@@ -51,13 +51,13 @@ Fetches comments from fitness & supplement review videos
 
 Acts as a reliable proxy for real-time consumer sentiment
 
-## 🧪 Secondary: Reddit (Beta)
+🧪 Secondary: Reddit (Beta)
 
 Integrated for broader discussion coverage
 
 Subject to API and rate-limit constraints
 
-## 🛟 Fallback: Sample Dataset
+🛟 Fallback: Sample Dataset
 
 Activated automatically when live APIs are unavailable
 
@@ -65,7 +65,7 @@ Ensures uninterrupted demos and analysis
 
 This multi-source design ensures resilience, compliance, and consistent output quality.
 
-## 🔍 Explainable Decision Pipeline
+🔍 Explainable Decision Pipeline
 
 1️⃣ Data Collection
 Live and cached social comments are ingested as raw input.
@@ -97,7 +97,7 @@ One Golden Candidate is recommended
 
 All decisions are fully traceable.
 
-# 📊 Trend Wall (AI-Aligned)
+📊 Trend Wall (AI-Aligned)
 
 Instead of relying on raw keyword frequency, the Trend Wall visualizes AI-evaluated trend strength derived from the decision trace.
 
@@ -109,7 +109,7 @@ Synonyms and implicit flavor references
 
 Trend visualization is directly aligned with the reasoning used to make product decisions.
 
-# 📋 Decision Trace (Auditability)
+📋 Decision Trace (Auditability)
 
 Every flavor recommendation includes:
 
@@ -121,11 +121,11 @@ Clear acceptance or rejection reason
 
 This makes the system auditable and stakeholder-friendly, suitable for real product discussions.
 
-# 🏆 Golden Candidate
+🏆 Golden Candidate
 
 The system highlights one flavor as the Golden Candidate, representing the strongest overall opportunity based on combined signals.
 
-# 🛠️ Tech Stack
+🛠️ Tech Stack
 
 Python
 
@@ -139,7 +139,7 @@ OpenAI API – LLM-based reasoning
 
 dotenv – Secure environment management
 
-# 🔐 Security & Reliability
+🔐 Security & Reliability
 
 API keys are stored in environment variables
 
@@ -149,7 +149,7 @@ Graceful fallback mechanisms prevent hard failures
 
 No credentials are exposed in the repository
 
-# 📌 Key Design Decisions
+📌 Key Design Decisions
 
 Prioritized official, compliant APIs over unstable scraping
 
@@ -159,7 +159,7 @@ Focused on explainability over black-box predictions
 
 Treated API limitations as a product constraint, not a blocker
 
-# 🚀 Future Enhancements
+🚀 Future Enhancements
 
 Likes-weighted trend scoring
 
@@ -169,12 +169,12 @@ Time-based trend momentum tracking
 
 Confidence intervals for recommendations
 
-## 👤 Author
+👤 Author
 
 Aaradhya Maharishi
 Data Analytics & Product Analytics Enthusiast
 
-## 🧠 Final Note
+🧠 Final Note
 
 Flavor Scout Engine is not a prediction system —
 it is a decision-support tool built to mirror real-world product constraints and stakeholder expectations.
