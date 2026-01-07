@@ -4,7 +4,9 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+
 from reddit_ingest import fetch_reddit_comments
+from youtube_ingest import fetch_comments_by_query
 
 
 # ------------------ SETUP ------------------
@@ -22,7 +24,11 @@ st.markdown("## 📥 Data Source")
 
 data_source = st.selectbox(
     "Select input source",
-    ["Sample Dataset", "Live Reddit Comments (Beta)"]
+    [
+        "Sample Dataset",
+        "Live Reddit Comments (Beta)",
+        "Live YouTube Comments"
+    ]
 )
 
 
@@ -34,13 +40,13 @@ with st.expander("Click to understand the decision pipeline"):
 **Flavor Scout follows an explainable decision pipeline:**
 
 1️⃣ **Data Collection**  
-Social media comments are collected as raw, unstructured input.
+Live and cached social media comments are ingested.
 
 2️⃣ **Signal Extraction**  
-Noise and irrelevant chatter are reduced to capture genuine flavor demand.
+Noise is reduced to isolate genuine flavor demand.
 
-3️⃣ **Trend & Sentiment Analysis**  
-Mentions are evaluated based on frequency, excitement, and context.
+3️⃣ **Semantic Trend & Sentiment Analysis**  
+Implicit flavor intent is inferred from context.
 
 4️⃣ **LLM-based Scoring Engine**  
 Each flavor is scored on:
@@ -56,7 +62,7 @@ Each flavor is scored on:
 """)
 
 
-# ------------------ LOAD DATA (FIXED SECTION) ------------------
+# ------------------ LOAD DATA ------------------
 if data_source == "Live Reddit Comments (Beta)":
     keyword = st.text_input(
         "Enter keyword / flavor to analyze",
@@ -68,10 +74,31 @@ if data_source == "Live Reddit Comments (Beta)":
 
     if df.empty:
         st.warning(
-            "⚠️ Live Reddit data is currently limited due to API restrictions. "
-            "Showing representative sample data instead."
+            "⚠️ Reddit API limitations detected. Showing representative sample data."
         )
         df = pd.read_csv("data/social_chatter.csv")
+
+elif data_source == "Live YouTube Comments":
+    query = st.text_input(
+        "Enter YouTube search query",
+        value="best whey protein india"
+    )
+
+    with st.spinner("Fetching YouTube comments..."):
+        comments = fetch_comments_by_query(
+            query=query,
+            max_videos=3,
+            max_comments_per_video=30
+        )
+
+    if not comments:
+        st.warning(
+            "⚠️ Unable to fetch live YouTube comments. Showing sample data instead."
+        )
+        df = pd.read_csv("data/social_chatter.csv")
+    else:
+        df = pd.DataFrame(comments)
+        df = df.rename(columns={"text": "comment"})
 
 else:
     df = pd.read_csv("data/social_chatter.csv")
@@ -83,32 +110,12 @@ st.write(f"Loaded **{len(df)}** comments")
 st.dataframe(df, use_container_width=True)
 
 
-# ------------------ TREND WALL ------------------
-st.markdown("## 📊 Trend Wall")
-
-all_text = " ".join(df["comment"].tolist()).lower()
-
-keywords = [
-    "chocolate", "vanilla", "kesar", "pista", "chai",
-    "watermelon", "blueberry", "cocoa", "nimbu", "orange"
-]
-
-trend_data = {k: all_text.count(k) for k in keywords}
-
-trend_df = pd.DataFrame({
-    "Flavor": trend_data.keys(),
-    "Mentions": trend_data.values()
-}).sort_values(by="Mentions", ascending=False)
-
-st.bar_chart(trend_df.set_index("Flavor"))
-
-
 # ------------------ AI ANALYSIS ------------------
 st.markdown("## 🤖 AI Decision Engine")
 
 if st.button("🔍 Analyze with AI"):
 
-    comments_text = "\n".join(df["comment"].tolist())
+    comments_text = "\n".join(df["comment"].astype(str).tolist())
 
     prompt = f"""
 You are a product analyst at HealthKart.
@@ -166,15 +173,11 @@ COMMENTS:
 
     raw_output = response.choices[0].message.content.strip()
 
-    # ---------- CLEAN JSON ----------
     if raw_output.startswith("```"):
         raw_output = raw_output.replace("```json", "").replace("```", "").strip()
 
     if "{" in raw_output and "}" in raw_output:
         raw_output = raw_output[raw_output.find("{"): raw_output.rfind("}") + 1]
-
-    st.markdown("### 🧾 Raw AI Output (Debug)")
-    st.code(raw_output, language="json")
 
     try:
         ai_output = json.loads(raw_output)
@@ -182,8 +185,9 @@ COMMENTS:
         st.error("⚠️ AI output could not be parsed as JSON.")
         st.stop()
 
+
     # ------------------ DECISION TRACE ------------------
-    st.markdown("## 📋 Decision Trace (Explainable Scoring)")
+    st.markdown("## 📋 Decision Trace")
 
     trace_df = pd.DataFrame(ai_output["decision_trace"])
 
@@ -201,6 +205,16 @@ COMMENTS:
         ],
         use_container_width=True
     )
+
+
+    # ------------------ 🔥 AI-ALIGNED TREND WALL (FIXED) ------------------
+    st.markdown("## 📊 Trend Wall (AI-Evaluated)")
+
+    trend_wall_df = trace_df[["flavor", "trend_score"]]
+    trend_wall_df = trend_wall_df.set_index("flavor")
+
+    st.bar_chart(trend_wall_df)
+
 
     # ------------------ BREAKDOWN ------------------
     st.markdown("## 🧠 Decision Breakdown")
@@ -224,6 +238,7 @@ COMMENTS:
 Rejected because: {item['reason']}
 """
             )
+
 
     # ------------------ GOLDEN CANDIDATE ------------------
     gc = ai_output["golden_candidate"]

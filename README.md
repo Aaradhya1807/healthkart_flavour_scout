@@ -1,9 +1,9 @@
 # 🍽️ Flavor Scout Engine
 AI-Driven Flavor Decision System for HealthKart
 
-Flavor Scout Engine is an explainable product decision system built as part of the HealthKart Product Analytics Assignment.
+Flavor Scout Engine is an explainable, AI-powered product decision system designed to help nutrition brands identify high-potential flavor ideas using live consumer discussions from public platforms.
 
-The platform converts noisy, unstructured social media chatter into clear, auditable flavor decisions using structured analytics and LLM-based reasoning — focusing on decision intelligence, not just insights.
+The system converts noisy social chatter into structured, auditable flavor decisions using analytics + LLM-based reasoning.
 
 # 🚀 Live Demo & Code
 
@@ -16,173 +16,165 @@ The platform converts noisy, unstructured social media chatter into clear, audit
 Flavor innovation in nutrition products often relies on intuition or delayed sales data.
 By the time trends appear in dashboards, consumer interest may already be fading.
 
-HealthKart needs a system that can:
+Social platforms contain early signals of flavor demand, but:
 
-Listen to early consumer conversations
+Data is noisy and unstructured
 
-Separate signal from noise
+APIs are restricted or unstable
 
-Clearly explain why a flavor is accepted or rejected
+Insights are difficult to justify to stakeholders
 
-Recommend one high-confidence flavor for business action
+Flavor Scout addresses this gap by providing a resilient, explainable decision pipeline.
 
 # 🧠 Solution Overview
 
-Flavor Scout Engine acts as a Decision Intelligence Layer between social chatter and product teams.
+Flavor Scout ingests live social discussions, extracts flavor signals, and evaluates them using a transparent scoring framework.
 
-It does not just summarize comments — it reasons about them.
+Key capabilities:
 
-The system outputs:
+Live social data ingestion (YouTube, Reddit)
 
-✅ Accepted flavor ideas (with scores + reasoning)
+Graceful fallback to representative sample data
 
-❌ Rejected ideas (with rejection logic)
+Semantic trend inference (not keyword-only)
 
-🏆 One Golden Candidate recommended for launch consideration
+Explainable, score-based decision making
 
-🔍 Decision Pipeline (End-to-End)
-1️⃣ Social Media Data Collection
+Clear ACCEPT / REJECT recommendations
 
-Input data simulates Reddit / review / comment-based chatter
+# 📥 Data Sources
+✅ Primary: YouTube Comments (Live)
 
-Stored as structured CSV (social_chatter.csv)
+Uses official YouTube Data API v3
 
-Supports live Reddit ingestion (beta) with graceful fallback
+Fetches comments from fitness & supplement review videos
 
-2️⃣ Signal Extraction & Trend Detection
+Acts as a reliable proxy for real-time consumer sentiment
 
-Flavor keywords are identified
+## 🧪 Secondary: Reddit (Beta)
 
-Mention frequency is calculated
+Integrated for broader discussion coverage
 
-High-noise, low-intent chatter is deprioritized
+Subject to API and rate-limit constraints
 
-3️⃣ Explainable Scoring Engine (Core Logic)
+## 🛟 Fallback: Sample Dataset
 
-Each flavor is evaluated on four independent dimensions:
+Activated automatically when live APIs are unavailable
 
-Score Type	Description
-Trend Score	Frequency and strength of mentions
-Sentiment Score	Positive vs neutral vs negative context
-Brand Fit Score	Alignment with HealthKart brands (MuscleBlaze, HK Vitals, etc.)
-Signal Quality Score	Noise vs genuine consumer intent
+Ensures uninterrupted demos and analysis
 
-A Final Score (0–100) is computed using weighted reasoning.
+This multi-source design ensures resilience, compliance, and consistent output quality.
 
-# 🎯 Final Acceptance Logic
+## 🔍 Explainable Decision Pipeline
 
-Decision Rules:
+1️⃣ Data Collection
+Live and cached social comments are ingested as raw input.
 
-✅ ACCEPT → Final Score ≥ 75 (High confidence, launch-worthy)
+2️⃣ Signal Extraction
+Noise is reduced to isolate meaningful flavor-related discussion.
 
-❌ REJECT → Final Score < 75 (Weak signal or high noise)
+3️⃣ Semantic Trend & Sentiment Analysis
+Flavor intent is inferred from context, not just literal keyword mentions.
 
-This threshold-based logic mirrors real-world product council decisions, ensuring only strong, defensible ideas move forward.
+4️⃣ LLM-based Scoring Engine
+Each flavor is scored on:
 
-4️⃣ LLM-Based Decision Reasoning
+Trend Strength
 
-A Large Language Model acts as a Product Analyst, using the scores to:
+Sentiment Strength
 
-Accept strong flavor ideas
+Brand Fit
 
-Reject weak or noisy ideas (with clear reasons)
+Signal Quality
 
-Justify decisions in business-readable language
+5️⃣ Decision Rules
 
-The LLM returns strict structured JSON, enabling transparency and auditability.
+Final Score ≥ 75 → ACCEPT
 
-5️⃣ Golden Candidate Selection
+Final Score < 75 → REJECT
 
-The system selects one flavor with:
+One Golden Candidate is recommended
 
-Highest final score
+All decisions are fully traceable.
 
-Strong brand alignment
+# 📊 Trend Wall (AI-Aligned)
 
-Clear launch justification
+Instead of relying on raw keyword frequency, the Trend Wall visualizes AI-evaluated trend strength derived from the decision trace.
 
-This mirrors how real product councils prioritize ideas.
+This avoids bias caused by:
 
-## 📊 Output Example
-✅ Accepted Flavors
+Sparse explicit mentions
 
-Masala Chai — MuscleBlaze
-Strong cultural relevance, frequent mentions, post-workout appeal
+Synonyms and implicit flavor references
 
-Nimbu Pani — HK Vitals
-Refreshing hydration use-case with positive wellness sentiment
+Trend visualization is directly aligned with the reasoning used to make product decisions.
 
-❌ Rejected Flavors
+# 📋 Decision Trace (Auditability)
 
-Low mention frequency
+Every flavor recommendation includes:
 
-Ambiguous sentiment
+Individual component scores
 
-Weak product-market fit
+Final score calculation
 
-Each rejection includes a clear explanation.
+Clear acceptance or rejection reason
 
-## 🏆 Golden Candidate
+This makes the system auditable and stakeholder-friendly, suitable for real product discussions.
 
-Masala Chai Whey — MuscleBlaze
-High trend momentum, emotional recall, and strong brand synergy for Indian fitness consumers.
+# 🏆 Golden Candidate
 
-# 🖥️ Dashboard Highlights
+The system highlights one flavor as the Golden Candidate, representing the strongest overall opportunity based on combined signals.
 
-📋 Decision Trace Table (Explainable Scoring)
+# 🛠️ Tech Stack
 
-🧠 Accept vs Reject Breakdown
+Python
 
-🏆 Golden Candidate Card
+Streamlit – Interactive UI
 
-## 🔍 Raw AI Output Debug Panel (Transparency)
+YouTube Data API v3 – Live ingestion
 
-Designed for Product Managers, not just engineers.
+Pandas – Data handling
 
-# ⚙️ Tech Stack
+OpenAI API – LLM-based reasoning
 
-Frontend: Streamlit
+dotenv – Secure environment management
 
-Backend: Python
+# 🔐 Security & Reliability
 
-Data Processing: Pandas
+API keys are stored in environment variables
 
-AI Reasoning: OpenAI API (LLMs)
+External APIs are restricted at the service level
 
-Deployment: Render
+Graceful fallback mechanisms prevent hard failures
 
-Version Control: Git & GitHub
+No credentials are exposed in the repository
 
-# 🔐 Environment Variables
+# 📌 Key Design Decisions
 
-OPENAI_API_KEY=your_api_key_here
-API keys are never committed to GitHub and are securely injected at deployment.
+Prioritized official, compliant APIs over unstable scraping
 
-# 🛠️ Local Setup
+Designed ingestion to be platform-agnostic
 
-git clone https://github.com/Aaradhya1807/healthkart_flavour_scout.git
-cd healthkart_flavour_scout
+Focused on explainability over black-box predictions
 
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+Treated API limitations as a product constraint, not a blocker
 
-pip install -r requirements.txt
-streamlit run app.py
+# 🚀 Future Enhancements
 
+Likes-weighted trend scoring
 
-# 📈 Future Enhancements
+Multi-source signal blending
 
-Live Reddit / Twitter ingestion (full-scale)
+Time-based trend momentum tracking
 
-Time-series trend momentum tracking
-
-Category-level recommendations (Protein, Wellness, Hydration)
-
-Exportable, product-ready decision reports
+Confidence intervals for recommendations
 
 ## 👤 Author
 
 Aaradhya Maharishi
-Aspiring Data & Product Analyst
+Data Analytics & Product Analytics Enthusiast
 
-Built as part of a HealthKart Product Analytics Assignment, with a focus on explainable decision intelligence, not black-box AI.
+## 🧠 Final Note
+
+Flavor Scout Engine is not a prediction system —
+it is a decision-support tool built to mirror real-world product constraints and stakeholder expectations.
