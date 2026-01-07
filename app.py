@@ -87,8 +87,8 @@ elif data_source == "Live YouTube Comments":
     with st.spinner("Fetching YouTube comments..."):
         comments = fetch_comments_by_query(
             query=query,
-            max_videos=3,
-            max_comments_per_video=30
+            max_videos=10,
+            max_comments_per_video=50
         )
 
     if not comments:

@@ -34,7 +34,7 @@ def search_videos(query, max_results=5):
     return [item["id"]["videoId"] for item in data.get("items", [])]
 
 
-def fetch_comments(video_id, max_comments=50):
+def fetch_comments(video_id, max_comments=500):
     """
     Fetch top-level comments from a YouTube video
     """
