@@ -81,14 +81,13 @@ if data_source == "Live Reddit Comments (Beta)":
 elif data_source == "Live YouTube Comments":
     query = st.text_input(
         "Enter YouTube search query",
-        value="best whey protein india"
-    )
+        value="protien flavours"    )
 
     with st.spinner("Fetching YouTube comments..."):
         comments = fetch_comments_by_query(
             query=query,
             max_videos=10,
-            max_comments_per_video=50
+            max_comments_per_video=10
         )
 
     if not comments:
@@ -134,7 +133,7 @@ RULES:
 - FINAL_SCORE >= 75 → ACCEPT
 - FINAL_SCORE < 75 → REJECT
 - Scores above 85 should be rare
-
+- If there are no comments related to flavours, give output as "No comments related to flavour".
 Return STRICT JSON only.
 
 FORMAT:
