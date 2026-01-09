@@ -3,7 +3,8 @@ import pandas as pd
 import os
 import json
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, RateLimitError, OpenAIError
+import google.generativeai as genai
 
 from reddit_ingest import fetch_reddit_comments
 from youtube_ingest import fetch_comments_by_query
@@ -11,7 +12,11 @@ from youtube_ingest import fetch_comments_by_query
 
 # ------------------ SETUP ------------------
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
 st.set_page_config(page_title="Flavor Scout Engine", layout="wide")
 
@@ -37,51 +42,27 @@ st.markdown("## 🧠 How Flavor Decisions Are Made")
 
 with st.expander("Click to understand the decision pipeline"):
     st.markdown("""
-**Flavor Scout follows an explainable decision pipeline:**
-
-1️⃣ **Data Collection**  
-Live and cached social media comments are ingested.
-
-2️⃣ **Signal Extraction**  
-Noise is reduced to isolate meaningful flavor-related discussion.
-
-3️⃣ **Semantic Trend & Sentiment Analysis**  
-Implicit flavor intent is inferred from context.
-
-4️⃣ **LLM-based Scoring Engine**  
-Each flavor is scored on:
-- Trend Strength  
-- Sentiment Strength  
-- Brand Fit  
-- Signal Quality  
-
-5️⃣ **Decision Rules**
-- Final Score ≥ 75 → ACCEPT  
-- Final Score < 75 → REJECT  
-- One Golden Candidate is recommended
+1️⃣ Data Collection  
+2️⃣ Signal Extraction  
+3️⃣ Semantic Trend & Sentiment Analysis  
+4️⃣ LLM-based Scoring Engine  
+5️⃣ Decision Rules
 """)
 
 
 # ------------------ LOAD DATA ------------------
 if data_source == "Live Reddit Comments (Beta)":
-    keyword = st.text_input(
-        "Enter keyword / flavor to analyze",
-        value="whey protein"
-    )
+    keyword = st.text_input("Enter keyword / flavor to analyze", value="whey protein")
 
     with st.spinner("Fetching Reddit comments..."):
         df = fetch_reddit_comments(keyword=keyword, limit=120)
 
     if df.empty:
-        st.warning(
-            "⚠️ Reddit API limitations detected. Showing representative sample data."
-        )
+        st.warning("⚠️ Reddit API limit hit. Showing sample data.")
         df = pd.read_csv("data/social_chatter.csv")
 
 elif data_source == "Live YouTube Comments":
-    query = st.text_input(
-        "Enter YouTube search query",
-        value="protien flavours"    )
+    query = st.text_input("Enter YouTube search query", value="protein flavours")
 
     with st.spinner("Fetching YouTube comments..."):
         comments = fetch_comments_by_query(
@@ -91,13 +72,10 @@ elif data_source == "Live YouTube Comments":
         )
 
     if not comments:
-        st.warning(
-            "⚠️ Unable to fetch live YouTube comments. Showing sample data instead."
-        )
+        st.warning("⚠️ Unable to fetch YouTube comments. Showing sample data.")
         df = pd.read_csv("data/social_chatter.csv")
     else:
-        df = pd.DataFrame(comments)
-        df = df.rename(columns={"text": "comment"})
+        df = pd.DataFrame(comments).rename(columns={"text": "comment"})
 
 else:
     df = pd.read_csv("data/social_chatter.csv")
@@ -121,19 +99,6 @@ You are a product analyst at HealthKart.
 
 Evaluate flavor ideas using a structured scoring framework.
 
-SCORING (0–100):
-- trend_score
-- sentiment_score
-- brand_fit_score
-- signal_quality_score
-
-FINAL_SCORE = average of all four scores
-
-RULES:
-- FINAL_SCORE >= 75 → ACCEPT
-- FINAL_SCORE < 75 → REJECT
-- Scores above 85 should be rare
-- If there are no comments related to flavours, give output as "No comments related to flavour".
 Return STRICT JSON only.
 
 FORMAT:
@@ -164,19 +129,33 @@ COMMENTS:
 """
 
     with st.spinner("AI is analyzing social chatter..."):
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
-        )
 
-    raw_output = response.choices[0].message.content.strip()
+        try:
+            # ---------- PRIMARY: GPT-4o ----------
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=800
+            )
+
+            raw_output = response.choices[0].message.content
+
+        except (RateLimitError, OpenAIError):
+            # ---------- FALLBACK: GEMINI ----------
+            st.warning("⚠️ Transferring AI from GPT-4o to Gemini")
+
+            gemini_response = gemini_model.generate_content(prompt)
+            raw_output = gemini_response.text
+
+
+    # ------------------ CLEAN & PARSE JSON ------------------
+    raw_output = raw_output.strip()
 
     if raw_output.startswith("```"):
         raw_output = raw_output.replace("```json", "").replace("```", "").strip()
 
-    if "{" in raw_output and "}" in raw_output:
-        raw_output = raw_output[raw_output.find("{"): raw_output.rfind("}") + 1]
+    raw_output = raw_output[raw_output.find("{"): raw_output.rfind("}") + 1]
 
     try:
         ai_output = json.loads(raw_output)
@@ -189,52 +168,14 @@ COMMENTS:
     st.markdown("## 📋 Decision Trace")
 
     trace_df = pd.DataFrame(ai_output["decision_trace"])
-
-    st.dataframe(
-        trace_df[
-            [
-                "flavor",
-                "trend_score",
-                "sentiment_score",
-                "brand_fit_score",
-                "signal_quality_score",
-                "final_score",
-                "decision"
-            ]
-        ],
-        use_container_width=True
-    )
+    st.dataframe(trace_df, use_container_width=True)
 
 
-    # ------------------ TREND WALL (AI-ALIGNED) ------------------
-    st.markdown("## 📊 Trend Wall (AI-Evaluated)")
+    # ------------------ TREND WALL ------------------
+    st.markdown("## 📊 Trend Wall")
 
-    trend_wall_df = trace_df[["flavor", "trend_score"]].set_index("flavor")
-    st.bar_chart(trend_wall_df)
-
-
-    # ------------------ DECISION BREAKDOWN ------------------
-    st.markdown("## 🧠 Decision Breakdown")
-
-    for item in ai_output["decision_trace"]:
-        if item["decision"] == "ACCEPT":
-            st.success(
-                f"""
-**{item['flavor']}** — {item['brand']}  
-**Final Score:** {item['final_score']}  
-
-{item['reason']}
-"""
-            )
-        else:
-            st.error(
-                f"""
-**{item['flavor']}**  
-**Final Score:** {item['final_score']}  
-
-Rejected because: {item['reason']}
-"""
-            )
+    if not trace_df.empty:
+        st.bar_chart(trace_df.set_index("flavor")["trend_score"])
 
 
     # ------------------ GOLDEN CANDIDATE ------------------
@@ -244,15 +185,10 @@ Rejected because: {item['reason']}
 
     st.markdown(
         f"""
-<div style="
-    padding: 30px;
-    border-radius: 15px;
-    background-color: #0f172a;
-    color: white;
-">
-    <h2>🚀 {gc['flavor']} — {gc['brand']}</h2>
-    <p><strong>Final Score:</strong> {gc['final_score']}</p>
-    <p style="font-size:18px;">{gc['why']}</p>
+<div style="padding:30px;border-radius:15px;background:#0f172a;color:white">
+<h2>🚀 {gc['flavor']} — {gc['brand']}</h2>
+<p><strong>Final Score:</strong> {gc['final_score']}</p>
+<p>{gc['why']}</p>
 </div>
 """,
         unsafe_allow_html=True
