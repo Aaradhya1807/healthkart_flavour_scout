@@ -66,7 +66,7 @@ def fetch_comments(video_id, max_comments=500):
     return comments
 
 
-def fetch_comments_by_query(query, max_videos=3, max_comments_per_video=30):
+def fetch_comments_by_query(query, max_videos=3, max_comments_per_video=10):
     """
     Search videos by query and fetch comments from each video
     """
