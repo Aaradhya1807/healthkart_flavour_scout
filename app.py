@@ -22,7 +22,7 @@ ACCEPT_THRESHOLD = 75
 MAX_FLAVOURS = 8
 
 INTENT_STRICTNESS = 0.75
-INTENT_THRESHOLD = int((1 - INTENT_STRICTNESS) * 100)  # 25
+INTENT_THRESHOLD = int((1 - INTENT_STRICTNESS) * 100)
 
 # ================== DATA SOURCE ==================
 st.markdown("## 📥 Data Source")
@@ -38,27 +38,21 @@ data_source = st.selectbox(
 
 # ================== LOAD DATA ==================
 if data_source == "Live Reddit Comments (Beta)":
-    keyword = st.text_input("Enter keyword / topic to analyze", value="whey protein")
+    keyword = st.text_input("Enter keyword / topic", value="whey protein")
 
     with st.spinner("Fetching Reddit comments..."):
         df = fetch_reddit_comments(keyword=keyword, limit=120)
 
     if df.empty:
-        st.warning("⚠️ Reddit limit hit. Loading sample data.")
         df = pd.read_csv("data/social_chatter.csv")
 
 elif data_source == "Live YouTube Comments":
     query = st.text_input("Enter YouTube search query", value="protein flavours")
 
     with st.spinner("Fetching YouTube comments..."):
-        comments = fetch_comments_by_query(
-            query=query,
-            max_videos=10,
-            max_comments_per_video=10
-        )
+        comments = fetch_comments_by_query(query=query, max_videos=5, max_comments_per_video=20)
 
     if not comments:
-        st.warning("⚠️ Unable to fetch YouTube comments. Loading sample data.")
         df = pd.read_csv("data/social_chatter.csv")
     else:
         df = pd.DataFrame(comments).rename(columns={"text": "comment"})
@@ -81,62 +75,45 @@ if st.button("🔍 Analyze with AI"):
     # ---------- DOMAIN GATE ----------
     FLAVOUR_CONTEXT_KEYWORDS = [
         "flavour", "flavor", "taste", "tasty", "sweet", "sour",
-        "chocolate", "vanilla", "strawberry", "mango", "mint",
+        "vanilla", "chocolate", "strawberry", "mango", "mint",
         "cookie", "banana", "whey", "protein", "shake",
         "ice cream", "drink"
     ]
 
-    comments_lower = comments_text.lower()
-
-    if not any(word in comments_lower for word in FLAVOUR_CONTEXT_KEYWORDS):
+    if not any(word in comments_text.lower() for word in FLAVOUR_CONTEXT_KEYWORDS):
         st.warning("⚠️ No flavours detected in comments.")
         st.stop()
-
 
     # ---------- PROMPT ----------
     prompt = f"""
 You are a flavour extraction engine.
 
-IMPORTANT RULES (STRICT):
-- Output ONLY raw, valid JSON
-- Do NOT include explanations
-- Do NOT include markdown
-- Do NOT include python code
-- Do NOT include variables, loops, functions, or logic
-- All values must be literal strings or numbers
+RULES:
+- Output ONLY valid JSON
+- No explanations, no markdown, no code
 - Do NOT invent flavours
+- Return at most {MAX_FLAVOURS} flavours
 
-DEFINITION:
-A flavour is ONLY a concrete, edible or consumable sensory variant.
-Examples: vanilla, chocolate, strawberry, mango mint, cookie blast.
+A flavour must be a concrete, edible or consumable taste.
+Examples: vanilla, chocolate, mango mint, cookie blast.
 
-INVALID (DO NOT SELECT AS FLAVOURS):
-- Brands or company names
-- Product categories
-- Mobile, tech, or electronic terms
-- Awareness, education, or health topics
+INVALID:
+- Brands
+- Companies
+- Tech terms
 - Abstract concepts
-- Colours unless they are edible flavours
 
-CRITICAL RULE:
-If the comments do NOT clearly discuss food, beverages, supplements,
-or consumable flavour contexts, return an EMPTY decision_trace.
+If no flavours exist, return:
+{{"decision_trace": []}}
 
-If NO valid flavours are found, return EXACTLY this JSON:
-
-{{
-  "decision_trace": []
-}}
-
-OUTPUT FORMAT (STRICT — DO NOT DEVIATE):
-
+FORMAT:
 {{
   "decision_trace": [
     {{
       "flavor": "vanilla",
-      "trend_score": 82,
+      "trend_score": 80,
       "signal_quality_score": 78,
-      "final_score": 80
+      "final_score": 79
     }}
   ]
 }}
@@ -145,77 +122,63 @@ COMMENTS:
 {comments_text}
 """
 
-
-    with st.spinner("AI is analyzing flavour signals..."):
-        response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": "Return ONLY valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0,
-            max_tokens=1200
-        )
+    # ---------- AI CALL ----------
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": "Return ONLY valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0,
+        max_tokens=1200
+    )
 
     raw_output = response.choices[0].message.content.strip()
 
-    # ---------- SAFE JSON EXTRACTION ----------
-    start = raw_output.find("{")
-    end = raw_output.rfind("}")
+    # ---------- SAFE JSON PARSE ----------
+    def safe_json_load(text):
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1:
+            return None
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            return None
 
-    if start == -1 or end == -1:
-        st.warning("⚠️ No flavours detected in comments.")
-        st.stop()
+    ai_output = safe_json_load(raw_output)
 
-    cleaned = raw_output[start:end + 1]
-
-    try:
-        ai_output = json.loads(cleaned)
-    except json.JSONDecodeError:
+    if not ai_output:
         st.error("❌ AI returned invalid JSON")
-        st.code(cleaned)
+        st.code(raw_output)
         st.stop()
 
     decision_trace = ai_output.get("decision_trace", [])
-
     if not decision_trace:
         st.warning("⚠️ No flavours detected in comments.")
         st.stop()
 
-    # ---------- DECISION TRACE ----------
     trace_df = pd.DataFrame(decision_trace)
 
-    required_cols = {"flavor", "trend_score", "signal_quality_score", "final_score"}
-    if trace_df.empty or not required_cols.issubset(trace_df.columns):
-        st.warning("⚠️ No valid flavour intent detected.")
-        st.stop()
-
-    # ---------- HARD FLAVOUR VALIDATION ----------
-    INVALID_KEYWORDS = [
-        "awareness", "education", "health", "guidance",
-        "company", "brand", "campaign", "initiative"
+    # ---------- HARD FILTER ----------
+    BRAND_KEYWORDS = [
+        "ryse", "ghost", "optimum", "dymatize",
+        "labrada", "ascent", "myprotein",
+        "samsung", "oppo", "redmi", "iphone"
     ]
 
     def is_valid_flavour(flavour):
         flavour = flavour.lower()
         if len(flavour.split()) > 3:
             return False
-        return not any(word in flavour for word in INVALID_KEYWORDS)
+        if any(b in flavour for b in BRAND_KEYWORDS):
+            return False
+        return True
 
     trace_df = trace_df[trace_df["flavor"].apply(is_valid_flavour)]
 
     if trace_df.empty:
         st.warning("⚠️ No flavours detected in comments.")
-        st.stop()
-
-    # ---------- FILTER LOW INTENT ----------
-    trace_df = trace_df[
-        (trace_df["trend_score"] > 0) |
-        (trace_df["signal_quality_score"] >= INTENT_THRESHOLD)
-    ]
-
-    if trace_df.empty:
-        st.warning("⚠️ No flavours found with meaningful intent.")
         st.stop()
 
     trace_df = trace_df.head(MAX_FLAVOURS)
@@ -234,16 +197,27 @@ COMMENTS:
     trace_df["trend_score"] = trace_df["final_score"]
     trace_df["signal_quality_score"] = trace_df["final_score"]
 
-    # ---------- BUSINESS RULE ----------
     trace_df["decision"] = trace_df["final_score"].apply(
         lambda x: "ACCEPT" if x >= ACCEPT_THRESHOLD else "REJECT"
     )
 
-    # ---------- INTENT-BASED REASON ----------
+    # ---------- SCORE-AWARE REASON ----------
     def intent_reason(row):
-        if row["final_score"] >= ACCEPT_THRESHOLD:
-            return "Strong positive sentiment and repeated favourable mentions."
-        return "Negative or weak sentiment observed across user comments."
+        score = row["final_score"]
+        flavour = row["flavor"]
+
+        if score >= 95:
+            return f"Overwhelmingly positive sentiment for {flavour}."
+        elif score >= 85:
+            return f"Strong positive perception for {flavour} with minor neutral feedback."
+        elif score >= 75:
+            return f"Generally liked flavour with some mixed opinions."
+        elif score >= 60:
+            return f"Mixed sentiment with noticeable criticism."
+        elif score >= 40:
+            return f"Predominantly negative feedback affecting appeal."
+        else:
+            return f"Strong negative sentiment across user comments."
 
     trace_df["reason"] = trace_df.apply(intent_reason, axis=1)
 
@@ -251,18 +225,11 @@ COMMENTS:
     st.markdown("## 📋 Decision Trace")
     st.dataframe(trace_df, use_container_width=True)
 
-    st.markdown("## 📊 Trend Wall")
-    st.bar_chart(trace_df.set_index("flavor")["trend_score"])
+    st.markdown("## 🏆 Golden Candidate")
+    accepted = trace_df[trace_df["decision"] == "ACCEPT"]
 
-    st.markdown("## 🏆 Golden Candidate Recommendation")
-
-    accepted_df = trace_df[trace_df["decision"] == "ACCEPT"]
-
-    if accepted_df.empty:
+    if accepted.empty:
         st.error("❌ No flavour met acceptance criteria.")
     else:
-        golden = accepted_df.sort_values("final_score", ascending=False).iloc[0]
-        st.success(
-            f"🚀 Golden Candidate: **{golden['flavor']}** "
-            f"(Score: {golden['final_score']})"
-        )
+        top = accepted.iloc[0]
+        st.success(f"🚀 {top['flavor']} (Score: {top['final_score']})")
