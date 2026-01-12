@@ -50,7 +50,7 @@ elif data_source == "Live YouTube Comments":
     query = st.text_input("Enter YouTube search query", value="protein flavours")
 
     with st.spinner("Fetching YouTube comments..."):
-        comments = fetch_comments_by_query(query=query, max_videos=5, max_comments_per_video=20)
+        comments = fetch_comments_by_query(query=query, max_videos=2, max_comments_per_video=25)
 
     if not comments:
         df = pd.read_csv("data/social_chatter.csv")
