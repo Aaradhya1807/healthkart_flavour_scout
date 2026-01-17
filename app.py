@@ -24,6 +24,37 @@ MAX_FLAVOURS = 8
 INTENT_STRICTNESS = 0.75
 INTENT_THRESHOLD = int((1 - INTENT_STRICTNESS) * 100)
 
+# ================== DECISION PIPELINE ==================
+with st.expander("🔍 Click to understand the decision pipeline"):
+    st.markdown("""
+**Flavor Scout follows an explainable decision pipeline:**
+
+### 📊 Data Collection
+- Social media comments are collected as raw, unstructured input.
+
+### 🧹 Signal Extraction
+- Noise and irrelevant chatter are filtered out to capture real flavour intent.
+
+### 📈 Trend & Sentiment Analysis
+- Mentions are evaluated on:
+  - Frequency  
+  - Excitement  
+  - Context  
+
+### 🤖 LLM-based Scoring Engine
+Each flavour is scored on:
+- **Trend Strength**
+- **Sentiment Strength**
+- **Brand Fit**
+- **Signal Quality**
+
+### ✅ Decision Rules
+- **Final Score ≥ 75 → ACCEPT**
+- **Final Score < 75 → REJECT**
+- **One Golden Candidate is recommended**
+""")
+
+
 # ================== DATA SOURCE ==================
 st.markdown("## 📥 Data Source")
 
@@ -220,6 +251,17 @@ COMMENTS:
             return f"Strong negative sentiment across user comments."
 
     trace_df["reason"] = trace_df.apply(intent_reason, axis=1)
+
+    # ================== TREND WALL (BAR GRAPH) ==================
+    st.markdown("## 🔥 Trend Wall (Flavor Popularity)")
+
+    # Prepare data
+    trend_df = trace_df[["flavor", "final_score"]].set_index("flavor")
+
+    # Bar chart
+    st.bar_chart(trend_df)
+
+
 
     # ---------- DISPLAY ----------
     st.markdown("## 📋 Decision Trace")
