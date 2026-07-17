@@ -9,7 +9,7 @@ This started as a single-purpose flavor-trend tool for HealthKart and has since 
 ## 🚀 Live Demo & Code
 
 - **Live App:** https://healthkart-flavour-scout.onrender.com
-- **GitHub Repo:** https://github.com/Aaradhya1807/healthkart_flavour_scout
+- **GitHub Repo:** https://github.com/Aaradhya1807/Signal_Scout_Engine
 
 ## 🎯 What problem this solves
 
