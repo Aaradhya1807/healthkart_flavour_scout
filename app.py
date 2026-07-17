@@ -5,13 +5,14 @@ import json
 from dotenv import load_dotenv
 from groq import Groq
 
-from reddit_ingest import fetch_reddit_comments
+from reddit_ingest import fetch_reddit_comments, get_disabled_reason
 from youtube_ingest import fetch_comments_by_query
 
 # ================== SETUP ==================
 load_dotenv()
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 st.set_page_config(page_title="Flavor Scout Engine", layout="wide")
 
@@ -21,8 +22,28 @@ st.subheader("AI-Powered Flavor Discovery")
 ACCEPT_THRESHOLD = 75
 MAX_FLAVOURS = 8
 
-INTENT_STRICTNESS = 0.75
-INTENT_THRESHOLD = int((1 - INTENT_STRICTNESS) * 100)
+# Weights for the composite score. These are the same four components
+# advertised in the pipeline explainer below, so the number shown to the
+# user is actually derived from them (not a rank-based placeholder).
+SCORE_WEIGHTS = {
+    "trend_score": 0.35,
+    "sentiment_score": 0.30,
+    "brand_fit_score": 0.20,
+    "signal_quality_score": 0.15,
+}
+
+FLAVOUR_CONTEXT_KEYWORDS = [
+    "flavour", "flavor", "taste", "tasty", "sweet", "sour",
+    "vanilla", "chocolate", "strawberry", "mango", "mint",
+    "cookie", "banana", "whey", "protein", "shake",
+    "ice cream", "drink",
+]
+
+BRAND_KEYWORDS = [
+    "ryse", "ghost", "optimum", "dymatize",
+    "labrada", "ascent", "myprotein",
+    "samsung", "oppo", "redmi", "iphone",
+]
 
 # ================== DECISION PIPELINE ==================
 with st.expander("🔍 Click to understand the decision pipeline"):
@@ -37,16 +58,20 @@ with st.expander("🔍 Click to understand the decision pipeline"):
 
 ### 📈 Trend & Sentiment Analysis
 - Mentions are evaluated on:
-  - Frequency  
-  - Excitement  
-  - Context  
+  - Frequency
+  - Excitement
+  - Context
 
 ### 🤖 LLM-based Scoring Engine
 Each flavour is scored on:
-- **Trend Strength**
-- **Sentiment Strength**
-- **Brand Fit**
-- **Signal Quality**
+- **Trend Strength** (35% weight)
+- **Sentiment Strength** (30% weight)
+- **Brand Fit** (20% weight)
+- **Signal Quality** (15% weight)
+
+The final score is a weighted average of these four components — not a
+ranking placeholder — so the same flavour will score the same regardless
+of what else appears in the batch.
 
 ### ✅ Decision Rules
 - **Final Score ≥ 75 → ACCEPT**
@@ -62,28 +87,46 @@ data_source = st.selectbox(
     "Select input source",
     [
         "Sample Dataset",
-        "Live Reddit Comments (Beta)",
-        "Live YouTube Comments"
-    ]
+        "Live Reddit Comments (Disabled — policy)",
+        "Live YouTube Comments",
+    ],
 )
 
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_reddit(keyword: str, limit: int) -> pd.DataFrame:
+    return fetch_reddit_comments(keyword=keyword, limit=limit)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_youtube(query: str, max_videos: int, max_comments_per_video: int) -> list:
+    return fetch_comments_by_query(
+        query=query,
+        max_videos=max_videos,
+        max_comments_per_video=max_comments_per_video,
+    )
+
+
 # ================== LOAD DATA ==================
-if data_source == "Live Reddit Comments (Beta)":
+if data_source == "Live Reddit Comments (Disabled — policy)":
     keyword = st.text_input("Enter keyword / topic", value="whey protein")
 
     with st.spinner("Fetching Reddit comments..."):
-        df = fetch_reddit_comments(keyword=keyword, limit=120)
+        df = load_reddit(keyword, 120)
 
     if df.empty:
+        st.info(f"{get_disabled_reason()} Showing sample data instead.")
         df = pd.read_csv("data/social_chatter.csv")
 
 elif data_source == "Live YouTube Comments":
     query = st.text_input("Enter YouTube search query", value="protein flavours")
 
     with st.spinner("Fetching YouTube comments..."):
-        comments = fetch_comments_by_query(query=query, max_videos=2, max_comments_per_video=25)
+        comments = load_youtube(query, 2, 25)
 
     if not comments:
+        st.info("Live YouTube fetch returned nothing (missing API key, quota exceeded, "
+                "or no matching videos) — showing sample data instead.")
         df = pd.read_csv("data/social_chatter.csv")
     else:
         df = pd.DataFrame(comments).rename(columns={"text": "comment"})
@@ -101,23 +144,20 @@ st.markdown("## 🤖 AI Decision Engine")
 
 if st.button("🔍 Analyze with AI"):
 
+    if groq_client is None:
+        st.error("❌ GROQ_API_KEY is not set. Add it to your .env file to run analysis.")
+        st.stop()
+
     comments_text = "\n".join(df["comment"].astype(str).tolist())
 
     # ---------- DOMAIN GATE ----------
-    FLAVOUR_CONTEXT_KEYWORDS = [
-        "flavour", "flavor", "taste", "tasty", "sweet", "sour",
-        "vanilla", "chocolate", "strawberry", "mango", "mint",
-        "cookie", "banana", "whey", "protein", "shake",
-        "ice cream", "drink"
-    ]
-
     if not any(word in comments_text.lower() for word in FLAVOUR_CONTEXT_KEYWORDS):
         st.warning("⚠️ No flavours detected in comments.")
         st.stop()
 
     # ---------- PROMPT ----------
     prompt = f"""
-You are a flavour extraction engine.
+You are a flavour extraction and scoring engine.
 
 RULES:
 - Output ONLY valid JSON
@@ -134,6 +174,16 @@ INVALID:
 - Tech terms
 - Abstract concepts
 
+Score each flavour from 0-100 on FOUR independent components based only
+on evidence in the comments:
+- trend_score: how frequently and prominently it's mentioned
+- sentiment_score: how positively people react to it
+- brand_fit_score: how well it fits a nutrition/protein/supplement brand
+- signal_quality_score: how clear and unambiguous the mentions are (vs vague/sarcastic)
+
+Do NOT compute a final score yourself — just return the four component
+scores per flavour, honestly and independently of each other.
+
 If no flavours exist, return:
 {{"decision_trace": []}}
 
@@ -143,8 +193,9 @@ FORMAT:
     {{
       "flavor": "vanilla",
       "trend_score": 80,
-      "signal_quality_score": 78,
-      "final_score": 79
+      "sentiment_score": 85,
+      "brand_fit_score": 70,
+      "signal_quality_score": 78
     }}
   ]
 }}
@@ -154,17 +205,20 @@ COMMENTS:
 """
 
     # ---------- AI CALL ----------
-    response = groq_client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": "Return ONLY valid JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0,
-        max_tokens=1200
-    )
-
-    raw_output = response.choices[0].message.content.strip()
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "Return ONLY valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+            max_tokens=1200,
+        )
+        raw_output = response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"❌ AI request failed: {e}")
+        st.stop()
 
     # ---------- SAFE JSON PARSE ----------
     def safe_json_load(text):
@@ -191,15 +245,16 @@ COMMENTS:
 
     trace_df = pd.DataFrame(decision_trace)
 
-    # ---------- HARD FILTER ----------
-    BRAND_KEYWORDS = [
-        "ryse", "ghost", "optimum", "dymatize",
-        "labrada", "ascent", "myprotein",
-        "samsung", "oppo", "redmi", "iphone"
-    ]
+    # Fill any missing component scores defensively (LLM output isn't
+    # guaranteed to include every key for every row).
+    for col in SCORE_WEIGHTS:
+        if col not in trace_df.columns:
+            trace_df[col] = 50
+        trace_df[col] = pd.to_numeric(trace_df[col], errors="coerce").fillna(50).clip(0, 100)
 
+    # ---------- HARD FILTER ----------
     def is_valid_flavour(flavour):
-        flavour = flavour.lower()
+        flavour = str(flavour).lower()
         if len(flavour.split()) > 3:
             return False
         if any(b in flavour for b in BRAND_KEYWORDS):
@@ -212,21 +267,16 @@ COMMENTS:
         st.warning("⚠️ No flavours detected in comments.")
         st.stop()
 
+    # ---------- REAL WEIGHTED SCORING ----------
+    # final_score is a genuine weighted average of the four LLM-scored
+    # components — each flavour's score depends only on itself, not on
+    # its rank relative to the others in this batch.
+    trace_df["final_score"] = sum(
+        trace_df[col] * weight for col, weight in SCORE_WEIGHTS.items()
+    ).round().astype(int)
+
+    trace_df = trace_df.sort_values(by="final_score", ascending=False).reset_index(drop=True)
     trace_df = trace_df.head(MAX_FLAVOURS)
-
-    # ---------- RANK CALIBRATION ----------
-    trace_df = trace_df.sort_values(
-        by=["trend_score", "signal_quality_score"],
-        ascending=False
-    ).reset_index(drop=True)
-
-    n = len(trace_df)
-    MAX_SCORE, MIN_SCORE = 100, 40
-    step = (MAX_SCORE - MIN_SCORE) / (n - 1) if n > 1 else 0
-
-    trace_df["final_score"] = [int(MAX_SCORE - i * step) for i in range(n)]
-    trace_df["trend_score"] = trace_df["final_score"]
-    trace_df["signal_quality_score"] = trace_df["final_score"]
 
     trace_df["decision"] = trace_df["final_score"].apply(
         lambda x: "ACCEPT" if x >= ACCEPT_THRESHOLD else "REJECT"
@@ -254,18 +304,14 @@ COMMENTS:
 
     # ================== TREND WALL (BAR GRAPH) ==================
     st.markdown("## 🔥 Trend Wall (Flavor Popularity)")
-
-    # Prepare data
     trend_df = trace_df[["flavor", "final_score"]].set_index("flavor")
-
-    # Bar chart
     st.bar_chart(trend_df)
-
-
 
     # ---------- DISPLAY ----------
     st.markdown("## 📋 Decision Trace")
-    st.dataframe(trace_df, use_container_width=True)
+    display_cols = ["flavor", "trend_score", "sentiment_score", "brand_fit_score",
+                     "signal_quality_score", "final_score", "decision", "reason"]
+    st.dataframe(trace_df[display_cols], use_container_width=True)
 
     st.markdown("## 🏆 Golden Candidate")
     accepted = trace_df[trace_df["decision"] == "ACCEPT"]
