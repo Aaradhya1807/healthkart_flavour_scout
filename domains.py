@@ -1,5 +1,5 @@
 """
-Preset domain configurations for the Signal Scout Engine.
+Preset domain configurations for Noise2Signal.
 
 Each preset tells the engine:
 - what kind of "item" it's extracting (a flavor, a phone feature, a colorway...)

@@ -15,7 +15,7 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-st.set_page_config(page_title="Signal Scout Engine", layout="wide")
+st.set_page_config(page_title="Noise2Signal", layout="wide")
 
 ACCEPT_THRESHOLD = 75
 MAX_ITEMS = 8
@@ -29,7 +29,7 @@ SCORE_WEIGHTS = {
     "signal_quality_score": 0.15,
 }
 
-st.title("🔍 Signal Scout Engine")
+st.title("🔍 Noise2Signal")
 st.subheader("AI-Powered Product Signal Discovery")
 
 # ================== ANGLE SELECTION ==================
@@ -79,7 +79,7 @@ if not selected_domains:
 # ================== DECISION PIPELINE ==================
 with st.expander("🔍 Click to understand the decision pipeline"):
     st.markdown(f"""
-**Signal Scout follows the same explainable pipeline for every angle:**
+**Noise2Signal follows the same explainable pipeline for every angle:**
 
 ### 📊 Data Collection
 - Social media comments are collected as raw, unstructured input — once,
